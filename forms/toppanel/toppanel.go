@@ -15,11 +15,13 @@ func NewTopPanel() *TopPanel {
 	c.InitWidget()
 	c.SetElevation(5)
 	c.SetLayout(`
+	<column>
 		<row>
 			<textbox id="txtTarget" text="example.com"/>
 			<button id="btnStart" text="Start" onclick="OnStartClick"/>
 			<button id="btnStop" text="Stop" onclick="OnStopClick"/>
 		</row>
+	</column>
 	`, &c, nil)
 
 	txtTarget, ok := c.FindWidgetByName("txtTarget").(*ui.TextBox)

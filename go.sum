@@ -14,8 +14,6 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/u00io/gomisc v0.0.1 h1:561Nvmfw4YBigzFgjXK0r6nDzrFJRp9ZECFpAbmjyMw=
 github.com/u00io/gomisc v0.0.1/go.mod h1:2d4xEEOPga+7A1d4ukJ8N3JC+Ji4YbSa9m8amA/wKdI=
-github.com/u00io/localports v0.2.2 h1:aRx6rQzfZSCZCvzpFG5BCBBAY7qWuZcYkLgkwCBh+1s=
-github.com/u00io/localports v0.2.2/go.mod h1:dC/MqTGjMeg6kVEjwQBPIJfRziYGKnsX8+GtzfY3cpg=
 github.com/u00io/nui v0.0.5 h1:UpB3mtm8TyWNIF/Hj3cJ6kkZUHclJ9eSj/+3O9xyim4=
 github.com/u00io/nui v0.0.5/go.mod h1:02NXOqV2GsvEaJGiwX99u7wQBxm9UbW+OgXVmM4u0HM=
 golang.design/x/clipboard v0.7.1 h1:OEG3CmcYRBNnRwpDp7+uWLiZi3hrMRJpE9JkkkYtz2c=

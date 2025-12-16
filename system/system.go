@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/u00io/nuiforms/ui"
 )
 
 type System struct {
@@ -20,6 +22,8 @@ type System struct {
 	host     string
 
 	result Result
+
+	resultTableText string
 
 	processNamesById map[uint32]string
 }
@@ -91,6 +95,15 @@ func (c *System) thWork() {
 		target := c.host
 		maxTTL := 30
 
+		if target == "" {
+			c.mtx.Lock()
+			c.result.Status = "ERR: No target specified"
+			c.started = false
+			c.aborting = false
+			c.mtx.Unlock()
+			continue
+		}
+
 		ipAddr, err := net.ResolveIPAddr("ip4", target)
 		if err != nil {
 			fmt.Println("ResolveIPAddr error:", err)
@@ -101,11 +114,23 @@ func (c *System) thWork() {
 			c.mtx.Unlock()
 			continue
 		}
+
+		if ipAddr.IP == nil {
+			fmt.Println("Could not resolve IP address for [" + target + "]")
+			c.mtx.Lock()
+			c.result.Status = "ERR: Could not resolve IP address"
+			c.started = false
+			c.aborting = false
+			c.mtx.Unlock()
+			continue
+		}
+
 		dst := binary.LittleEndian.Uint32(ipAddr.IP.To4())
 
 		c.mtx.Lock()
 		c.result.IP = ipAddr.IP.String()
-		c.result.Country, _ = GetCountryByIP(c.result.IP)
+		c.result.CountryName, _ = GetCountryByIP(c.result.IP)
+		c.result.CountryISO, _ = GetCountryISOCodeByIP(c.result.IP)
 		c.mtx.Unlock()
 
 		icmp := icmpCreateFile()
@@ -129,16 +154,15 @@ func (c *System) thWork() {
 			c.result.Hops = append(c.result.Hops, hop)
 			c.mtx.Unlock()
 
-			reply, ok := icmpSendEcho(icmp, dst, ttl, 2000)
+			reply, ok := icmpSendEcho(icmp, dst, ttl, 1)
 			elapsed := time.Since(start)
 
 			fmt.Printf("%2d  ", ttl)
 
 			if !ok {
 				// No reply - go to next hop
-				fmt.Println("*")
 				c.mtx.Lock()
-				c.result.Hops[len(c.result.Hops)-1].IP = "*"
+				c.result.Hops[len(c.result.Hops)-1].IP = ""
 				c.result.Hops[len(c.result.Hops)-1].TimeMs = -1
 				c.mtx.Unlock()
 				continue
@@ -154,6 +178,8 @@ func (c *System) thWork() {
 			c.mtx.Lock()
 			c.result.Hops[len(c.result.Hops)-1].IP = hopIP.String()
 			c.result.Hops[len(c.result.Hops)-1].TimeMs = int64(float64(elapsed.Microseconds()) / 1000)
+			c.result.Hops[len(c.result.Hops)-1].CountryName, _ = GetCountryByIP(hopIP.String())
+			c.result.Hops[len(c.result.Hops)-1].CountryISO, _ = GetCountryISOCodeByIP(hopIP.String())
 			c.mtx.Unlock()
 
 			fmt.Printf("%s  %.2f ms\n", hopIP, float64(elapsed.Microseconds())/1000)
@@ -252,4 +278,17 @@ func icmpSendEcho(
 
 	reply := *(*ICMP_ECHO_REPLY)(unsafe.Pointer(&buf[0]))
 	return &reply, true
+}
+
+func (c *System) SetResultTableText(text string) {
+	c.mtx.Lock()
+	c.resultTableText = text
+	c.mtx.Unlock()
+}
+
+func (c *System) CopyResultsToClipboard() {
+	c.mtx.Lock()
+	txt := c.resultTableText
+	c.mtx.Unlock()
+	ui.ClipboardSetText(txt)
 }

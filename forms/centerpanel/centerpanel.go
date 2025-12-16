@@ -1,11 +1,15 @@
 package centerpanel
 
 import (
+	_ "embed"
 	"fmt"
-	"image/color"
+	"image"
+	"image/png"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/u00io/hopings/flags"
 	"github.com/u00io/hopings/system"
 	"github.com/u00io/nuiforms/ui"
 )
@@ -22,6 +26,38 @@ type CenterPanel struct {
 	tableResults *ui.Table
 }
 
+//go:embed bluerect.png
+var bluerect []byte
+
+//go:embed redrect.png
+var redrect []byte
+
+//go:embed greenrect.png
+var greenrect []byte
+
+//go:embed grayrect.png
+var grayrect []byte
+
+func blueRect() image.Image {
+	im, _ := png.Decode(strings.NewReader(string(bluerect)))
+	return im
+}
+
+func redRect() image.Image {
+	im, _ := png.Decode(strings.NewReader(string(redrect)))
+	return im
+}
+
+func greenRect() image.Image {
+	im, _ := png.Decode(strings.NewReader(string(greenrect)))
+	return im
+}
+
+func grayRect() image.Image {
+	im, _ := png.Decode(strings.NewReader(string(grayrect)))
+	return im
+}
+
 func NewCenterPanel() *CenterPanel {
 	var c CenterPanel
 	c.InitWidget()
@@ -31,8 +67,21 @@ func NewCenterPanel() *CenterPanel {
 	}
 	c.SetLayout(`
 		<column>
-			<label id="lblIP" text="---" />
-			<label id="lblResults" text="---"/>
+			<row padding="0" spacing="0">
+				<imagebox id="imgIP" />
+				<space width="10" />
+				<label id="lblIP" text="---" />
+			</row>
+			<row padding="0" spacing="0">
+				<imagebox id="imgFlag" />
+				<space width="10" />
+				<label id="lblCountry" text="---" />
+			</row>
+			<row padding="0" spacing="0">
+				<imagebox id="imgStatus" />
+				<space width="10" />
+				<label id="lblResults" text="---"/>
+			</row>
 			<widget id="tableresults" />
 		</column>
 	`, &c, curstomWidgets)
@@ -53,6 +102,33 @@ func NewCenterPanel() *CenterPanel {
 	go c.thUpdateData()
 
 	c.AddTimer(100, c.OnTimerUpdate)
+
+	imgIP, ok := c.FindWidgetByName("imgIP").(*ui.ImageBox)
+	if ok {
+		imgIP.SetMinSize(32, 24)
+		imgIP.SetMaxSize(32, 24)
+		imgIP.SetSize(32, 24)
+		imgIP.SetScaling(ui.ImageBoxScaleAdjustImageKeepAspectRatio)
+		imgIP.SetImage(grayRect())
+	}
+
+	imgFlag, ok := c.FindWidgetByName("imgFlag").(*ui.ImageBox)
+	if ok {
+		imgFlag.SetMinSize(32, 24)
+		imgFlag.SetMaxSize(32, 24)
+		imgFlag.SetSize(32, 24)
+		imgFlag.SetScaling(ui.ImageBoxScaleAdjustImageKeepAspectRatio)
+		imgFlag.SetImage(grayRect())
+	}
+
+	imgStatus, ok := c.FindWidgetByName("imgStatus").(*ui.ImageBox)
+	if ok {
+		imgStatus.SetMinSize(32, 24)
+		imgStatus.SetMaxSize(32, 24)
+		imgStatus.SetSize(32, 24)
+		imgStatus.SetScaling(ui.ImageBoxScaleAdjustImageKeepAspectRatio)
+		imgStatus.SetImage(grayRect())
+	}
 
 	return &c
 }
@@ -82,12 +158,52 @@ func (c *CenterPanel) updateData() {
 
 	lblIP, ok := c.FindWidgetByName("lblIP").(*ui.Label)
 	if ok {
-		lblIP.SetText(fmt.Sprintf("Target IP: %s | Country: %s", r.IP, r.Country))
+		lblIP.SetText(fmt.Sprintf("Target IP: %s", r.IP))
+	}
+
+	lblCountry, ok := c.FindWidgetByName("lblCountry").(*ui.Label)
+	if ok {
+		lblCountry.SetText(fmt.Sprintf("Country: %s", r.CountryName))
+	}
+
+	imgFlag, ok := c.FindWidgetByName("imgFlag").(*ui.ImageBox)
+	if ok {
+		imgFlag.SetMinSize(32, 24)
+		imgFlag.SetMaxSize(32, 24)
+		imgFlag.SetSize(32, 24)
+		imgFlag.SetScaling(ui.ImageBoxScaleAdjustImageKeepAspectRatio)
+		if r.CountryISO == "" {
+			imgFlag.SetImage(grayRect())
+		} else {
+			im, _ := flags.GetFlagImage(r.CountryISO)
+			imgFlag.SetImage(im)
+		}
 	}
 
 	lblResults, ok := c.FindWidgetByName("lblResults").(*ui.Label)
 	if ok {
 		lblResults.SetText(fmt.Sprintf("Status: %s | Hops: %d", r.Status, len(r.Hops)))
+		if r.Status == "Finished" {
+			lblResults.SetForegroundColor(ui.ColorFromHex("#23b423"))
+			imgStatus, ok := c.FindWidgetByName("imgStatus").(*ui.ImageBox)
+			if ok {
+				imgStatus.SetImage(greenRect())
+			}
+		}
+		if r.Status == "Running" {
+			lblResults.SetForegroundColor(ui.ColorFromHex("#3bafe6"))
+			imgStatus, ok := c.FindWidgetByName("imgStatus").(*ui.ImageBox)
+			if ok {
+				imgStatus.SetImage(blueRect())
+			}
+		}
+		if strings.Contains(r.Status, "ERR:") {
+			lblResults.SetForegroundColor(ui.ColorFromHex("#FF7777"))
+			imgStatus, ok := c.FindWidgetByName("imgStatus").(*ui.ImageBox)
+			if ok {
+				imgStatus.SetImage(redRect())
+			}
+		}
 	}
 
 	c.tableResults.SetRowCount(len(r.Hops))
@@ -97,16 +213,61 @@ func (c *CenterPanel) updateData() {
 
 		// IP ADDRESS
 		c.tableResults.SetCellText2(i, 1, hop.IP)
+		if hop.IP == "" {
+			c.tableResults.SetCellText2(i, 1, "-- no reply -- ")
+			c.tableResults.SetCellColor(i, 1, ui.ColorFromHex("#777777"))
+		} else {
+			col := ui.ColorFromHex("#FFFFFF")
+			if hop.IP == r.IP {
+				col = ui.ColorFromHex("#76e676")
+			}
+			c.tableResults.SetCellColor(i, 1, col)
+		}
 
 		// TIME MS
-		c.tableResults.SetCellText2(i, 2, fmt.Sprint(hop.TimeMs))
-		c.tableResults.SetCellColor(i, 2, color.RGBA{100, 100, 100, 255})
+		if hop.TimeMs < 0 {
+			c.tableResults.SetCellText2(i, 2, "")
+			c.tableResults.SetCellColor(i, 2, ui.ColorFromHex("#777777"))
+		} else {
+			col := ui.ColorFromHex("#FFFFFF")
+
+			// Highlight fast times
+			if hop.TimeMs >= 0 && hop.TimeMs < 100 {
+				col = ui.ColorFromHex("#76e676")
+			} else if hop.TimeMs >= 100 && hop.TimeMs < 200 {
+				col = ui.ColorFromHex("#f0f05f")
+			} else if hop.TimeMs >= 200 {
+				col = ui.ColorFromHex("#f3a375ff")
+			}
+
+			c.tableResults.SetCellText2(i, 2, fmt.Sprint(hop.TimeMs))
+			c.tableResults.SetCellColor(i, 2, col)
+		}
 
 		// COUNTRY
-		country, err := system.GetCountryByIP(hop.IP)
-		if err != nil {
-			country = ""
+		c.tableResults.SetCellText2(i, 3, hop.CountryName)
+
+		if hop.CountryISO != "" {
+			im, _ := flags.GetFlagImage(hop.CountryISO)
+			c.tableResults.SetCellImage(i, 3, im, 24)
+		} else {
+			c.tableResults.SetCellImage(i, 3, nil, 0)
 		}
-		c.tableResults.SetCellText2(i, 3, country)
+
 	}
+
+	strTable := ""
+	for colIndex := 0; colIndex < c.tableResults.ColumnCount(); colIndex++ {
+		strTable += c.tableResults.ColumnName(colIndex) + "\t"
+	}
+	strTable += "\r\n"
+	for rowIndex := 0; rowIndex < c.tableResults.RowCount(); rowIndex++ {
+		strRow := ""
+		for colIndex := 0; colIndex < c.tableResults.ColumnCount(); colIndex++ {
+			strRow += c.tableResults.GetCellText2(rowIndex, colIndex) + "\t"
+		}
+		strTable += strRow + "\r\n"
+	}
+
+	system.Instance.SetResultTableText(strTable)
 }
