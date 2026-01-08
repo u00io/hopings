@@ -5,6 +5,8 @@ go 1.24.0
 toolchain go1.24.11
 
 require (
+	github.com/fogleman/gg v1.3.0
+	github.com/jonas-p/go-shp v0.1.1
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/u00io/gomisc v0.0.1
 	github.com/u00io/nui v0.0.5
@@ -12,7 +14,6 @@ require (
 )
 
 require (
-	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	golang.design/x/clipboard v0.7.1 // indirect

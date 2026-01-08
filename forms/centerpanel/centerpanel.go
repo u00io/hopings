@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/u00io/hopings/flags"
+	"github.com/u00io/hopings/geomap"
 	"github.com/u00io/hopings/system"
 	"github.com/u00io/nuiforms/ui"
 )
@@ -22,6 +23,8 @@ type CenterPanel struct {
 
 	orderColumnIndex int
 	orderAsc         bool
+
+	strMapDigest string
 
 	tableResults *ui.Table
 }
@@ -66,6 +69,7 @@ func NewCenterPanel() *CenterPanel {
 		"tableresults": c.tableResults,
 	}
 	c.SetLayout(`
+	<row>
 		<column>
 			<row padding="0" spacing="0">
 				<imagebox id="imgIP" />
@@ -84,6 +88,8 @@ func NewCenterPanel() *CenterPanel {
 			</row>
 			<widget id="tableresults" />
 		</column>
+		<imagebox id="imgMap" />
+	</row>
 	`, &c, curstomWidgets)
 
 	c.orderColumnIndex = 1
@@ -130,6 +136,17 @@ func NewCenterPanel() *CenterPanel {
 		imgStatus.SetImage(grayRect())
 	}
 
+	imgMap, ok := c.FindWidgetByName("imgMap").(*ui.ImageBox)
+	if ok {
+		imgMap.SetXExpandable(true)
+		imgMap.SetYExpandable(true)
+		//imgMap.SetMinSize(600, 400)
+		//imgMap.SetMaxSize(32, 24)
+		//imgMap.SetSize(32, 24)
+		imgMap.SetScaling(ui.ImageBoxScaleAdjustImageKeepAspectRatio)
+		imgMap.SetImage(grayRect())
+	}
+
 	return &c
 }
 
@@ -147,6 +164,43 @@ func (c *CenterPanel) HandleSystemEvent(event system.Event) {
 	if event.Name == "update" {
 		c.updateData()
 	}
+}
+
+func (c *CenterPanel) updateMap(countries []string) {
+
+	digest := strings.Join(countries, ",")
+	if digest == c.strMapDigest {
+		return
+	}
+	c.strMapDigest = digest
+
+	settings := geomap.NewSettings()
+	settings.Width = 1200
+	settings.Height = 800
+	settings.ShowAllCapitals = true
+	settings.HighlightPath = []geomap.HighlightPoint{}
+
+	for _, countryISO := range countries {
+		if countryISO == "" {
+			continue
+		}
+		settings.HighlightPath = append(settings.HighlightPath, geomap.HighlightPoint{
+			CountryCode: countryISO,
+
+			Style: geomap.DefaultMarkerStyle(),
+		})
+	}
+
+	img, err := geomap.RenderMap(settings)
+	if err != nil {
+		panic(err)
+	}
+
+	imgMap, ok := c.FindWidgetByName("imgMap").(*ui.ImageBox)
+	if ok {
+		imgMap.SetImage(img)
+	}
+
 }
 
 func (c *CenterPanel) OnTimerUpdate() {
@@ -206,6 +260,8 @@ func (c *CenterPanel) updateData() {
 		}
 	}
 
+	countries := make([]string, 0)
+
 	c.tableResults.SetRowCount(len(r.Hops))
 	for i, hop := range r.Hops {
 		// INDEX
@@ -254,6 +310,8 @@ func (c *CenterPanel) updateData() {
 			c.tableResults.SetCellImage(i, 3, nil, 0)
 		}
 
+		countries = append(countries, hop.CountryISO)
+
 	}
 
 	strTable := ""
@@ -270,4 +328,6 @@ func (c *CenterPanel) updateData() {
 	}
 
 	system.Instance.SetResultTableText(strTable)
+
+	c.updateMap(countries)
 }
